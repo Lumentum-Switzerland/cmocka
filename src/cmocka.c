@@ -438,6 +438,30 @@ static void set_source_location(
 }
 
 
+/* Get the next return value for the specified mock function. */
+float binary_to_float(const LargestIntegralType value) {
+    union {
+        uint32_t bin;
+        float flt;
+    } float_union;
+    assert_int_equal(sizeof(float), sizeof(uint32_t));
+    float_union.bin = (uint32_t)value;
+    return float_union.flt;
+}
+
+
+/* Get the next return value for the specified mock function. */
+LargestIntegralType float_to_binary(const float value) {
+    union {
+        uint32_t bin;
+        float flt;
+    } float_union;
+    assert_int_equal(sizeof(float), sizeof(uint32_t));
+	float_union.flt = value;
+    return cast_to_largest_integral_type(float_union.bin);
+}
+
+
 static int c_strreplace(char *src,
                         size_t src_len,
                         const char *pattern,
@@ -567,7 +591,7 @@ static void fail_if_leftover_values(const char *test_name) {
 
     remove_always_return_values_from_list(&global_call_ordering_head);
     if (check_for_leftover_values_list(&global_call_ordering_head,
-        "%s function was expected to be called but was not not.\n")) {
+        "%s function was expected to be called but was not.\n")) {
         error_occurred = 1;
     }
     if (error_occurred) {
@@ -1072,6 +1096,18 @@ void _will_return(const char * const function_name, const char * const file,
                      return_value, count);
 }
 
+/* Add return values for the specified mock function name. */
+void _will_return_array(const char * const function_name, const char * const file,
+                        const int line, const void* array,
+                        const int length, const int count) {
+    for (int num = 0; num < count; num++) {
+        for (int idx = 0; idx < length; idx++)
+        {
+            _will_return(function_name, file, line, ((uint8_t*)array)[idx], 1);
+        }
+    }
+}
+
 
 /*
  * Add a custom parameter checking function.  If the event parameter is NULL
@@ -1147,6 +1183,34 @@ static int values_not_equal_display_error(const LargestIntegralType left,
     return not_equal;
 }
 
+/* Returns 1 if the specified values are equal.  If the values are not equal
+ * an error is displayed and 0 is returned. */
+static int floats_equal_display_error(const double left,
+                                      const double right,
+                                      const double res) {
+    const int equal = ((left - right) > -res) && ((left - right) < res);
+    if (!equal) {
+        cm_print_error(DoubleTypePrintfFormat " != "
+                       DoubleTypePrintfFormat " (+-"
+                       DoubleTypePrintfFormat ") " "\n", left, right, res);
+    }
+    return equal;
+}
+
+/*
+ * Returns 1 if the specified values are not equal.  If the values are equal
+ * an error is displayed and 0 is returned. */
+static int floats_not_equal_display_error(const double left,
+                                          const double right,
+                                          const double res) {
+    const int not_equal = ((left - right) < -res) || ((left - right) > res);
+    if (!not_equal) {
+        cm_print_error(DoubleTypePrintfFormat " == "
+                       DoubleTypePrintfFormat " (+-"
+                       DoubleTypePrintfFormat ") " "\n", left, right, res);
+    }
+    return not_equal;
+}
 
 /*
  * Determine whether value is contained within check_integer_set.
@@ -1732,6 +1796,24 @@ void _assert_int_not_equal(
 }
 
 
+void _assert_float_equal(
+        const double a, const double b, const double res,
+        const char * const file, const int line) {
+    if (!floats_equal_display_error(a, b, res)) {
+        _fail(file, line);
+    }
+}
+
+
+void _assert_float_not_equal(
+        const double a, const double b, const double res,
+        const char * const file, const int line) {
+    if (!floats_not_equal_display_error(a, b, res)) {
+        _fail(file, line);
+    }
+}
+
+
 void _assert_string_equal(const char * const a, const char * const b,
                           const char * const file, const int line) {
     if (!string_equal_display_error(a, b)) {
@@ -2261,9 +2343,11 @@ static void cmprintf_group_finish_xml(const char *group_name,
     FILE *fp = stdout;
     int file_opened = 0;
     int multiple_files = 0;
+    char* print_errors;
     char *env;
     size_t i;
 
+    print_errors = getenv("CMOCKA_PRINT_ERRORS");
     env = getenv("CMOCKA_XML_FILE");
     if (env != NULL) {
         char buf[1024];
@@ -2299,6 +2383,8 @@ static void cmprintf_group_finish_xml(const char *group_name,
                 fp = stderr;
             }
         }
+    } else {
+        print_message("CMOCKA_XML_FILE not set: printing to stdout");
     }
 
     if (!xml_printed || (file_opened && !file_append)) {
@@ -2330,8 +2416,16 @@ static void cmprintf_group_finish_xml(const char *group_name,
             if (cmtest->error_message != NULL) {
                 fprintf(fp, "      <failure><![CDATA[%s]]></failure>\n",
                         cmtest->error_message);
+                if (print_errors != NULL) {
+                    print_error("[  FAILED  ] %s\n", cmtest->test->name);
+                    print_error("%s\n", cmtest->error_message);
+                }
             } else {
                 fprintf(fp, "      <failure message=\"Unknown error\" />\n");
+                if (print_errors != NULL) {
+                    print_error("[  FAILED  ] %s\n", cmtest->test->name);
+                    print_error("%s\n", "Unknown error");
+                }
             }
             break;
         case CM_TEST_SKIPPED:

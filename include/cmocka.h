@@ -64,6 +64,10 @@ int __stdcall IsDebuggerPresent();
 # endif
 #endif
 
+#ifndef DoubleTypePrintfFormat
+# define DoubleTypePrintfFormat "%f"
+#endif /* DoubleTypePrintfFormat */
+
 #ifdef DOXYGEN
 /**
  * Largest integral type.  This type should be large enough to hold any
@@ -280,6 +284,31 @@ type mock_ptr_type(#type);
 #define mock_ptr_type(type) ((type) (uintptr_t) mock())
 #endif
 
+#ifdef DOXYGEN
+/**
+ * @brief Retrieve a float return value of the current function.
+ *
+ * The value would be casted to type internally to avoid having the
+ * caller to do the cast manually but also casted to uintptr_t to make
+ * sure the result has a valid size to be used as a pointer.
+ *
+ * @return The value which was stored to return by this function.
+ *
+ * @code
+ * float value;
+ *
+ * value = mock_float();
+ * @endcode
+ *
+ * @see will_return_float()
+ * @see mock()
+ * @see mock_type()
+ */
+type mock_float(#type);
+#else
+#define mock_float() binary_to_float(mock())
+#endif
+
 
 #ifdef DOXYGEN
 /**
@@ -384,6 +413,160 @@ void will_return_maybe(#function, LargestIntegralType value);
 #else
 #define will_return_maybe(function, value) \
     will_return_count(function, (value), WILL_RETURN_ONCE)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store a float value to be returned by mock_float() later.
+ *
+ * @param[in]  #function  The function which should return the given value.
+ *
+ * @param[in]  value The value to be returned by mock_float().
+ *
+ * This is equivalent to:
+ * @code
+ * will_return(function, (uint32_t)&value);
+ * @endcode
+ 
+ * @code
+ * float return_float(void)
+ * {
+ *      return (float)mock_float();
+ * }
+ *
+ * static void test_float_return(void **state)
+ * {
+ *      will_return(return_float, 42.42f);
+ *
+ *      assert_float_equal(my_function_calling_return_float(), 42.42f);
+ * }
+ * @endcode
+ *
+ * @see mock_float()
+ * @see will_return_count()
+ */
+void will_return_float(#function, float value);
+#else
+#define will_return_float(function, value) \
+    _will_return(#function, __FILE__, __LINE__, \
+                 float_to_binary(value), 1)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store a float to be returned by mock_float() later.
+ *
+ * @param[in]  #function  The function which should return the given value.
+ *
+ * @param[in]  value The value to be returned by mock_float().
+ *
+ * @param[in]  count The parameter indicates the number of times the value should
+ *                   be returned by mock_float(). If count is set to -1, the value
+ *                   will always be returned but must be returned at least once.
+ *                   If count is set to -2, the value will always be returned
+ *                   by mock_float(), but is not required to be returned.
+ *
+ * @see mock_float()
+ */
+void will_return_float_count(#function, float value, int count);
+#else
+#define will_return_float_count(function, value, count) \
+    _will_return(#function, __FILE__, __LINE__, \
+                 float_to_binary(value), count)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store a float that will be always returned by mock_float().
+ *
+ * @param[in]  #function  The function which should return the given value.
+ *
+ * @param[in]  #value The value to be returned by mock_float().
+ *
+ * This is equivalent to:
+ * @code
+ * will_return_float_count(function, value, -1);
+ * @endcode
+ *
+ * @see will_return_float_count()
+ * @see mock_float()
+ */
+void will_return_float_always(#function, float value);
+#else
+#define will_return_float_always(function, value) \
+    will_return_float_count(function, (value), WILL_RETURN_ALWAYS)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store a float that may be always returned by mock_float().
+ *
+ * This stores a value which will always be returned by mock_float() but is not
+ * required to be returned by at least one call to mock_float(). Therefore,
+ * in contrast to will_return_always() which causes a test failure if it
+ * is not returned at least once, will_return_maybe() will never cause a test
+ * to fail if its value is not returned.
+ *
+ * @param[in]  #function  The function which should return the given value.
+ *
+ * @param[in]  #value The value to be returned by mock_float().
+ *
+ * This is equivalent to:
+ * @code
+ * will_return_float_count(function, value, -2);
+ * @endcode
+ *
+ * @see will_return_float_count()
+ * @see mock_float()
+ */
+void will_return_float_maybe(#function, float value);
+#else
+#define will_return_float_maybe(function, value) \
+    will_return_float_count(function, (value), WILL_RETURN_ONCE)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store several values to be returned by mock() later.
+ *
+ * @param[in]  #function  The function which should return the given values.
+ *
+ * @param[in]  array The array of byte values to be returned by mock().
+ *
+ * @param[in]  length The number of bytes in the array.
+ *
+ * @see mock()
+ */
+void will_return_array(#function, void* array, int length);
+#else
+#define will_return_array(function, array, length) \
+    _will_return_array(#function, __FILE__, __LINE__, \
+                       array, length, 1)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Store several values to be returned by mock() later.
+ *
+ * @param[in]  #function  The function which should return the given values.
+ *
+ * @param[in]  array The array of byte values to be returned by mock().
+ *
+ * @param[in]  length The number of bytes in the array.
+ *
+ * @param[in]  count The parameter indicates the number of times the value should
+ *                   be returned by mock(). If count is set to -1, the value
+ *                   will always be returned but must be returned at least once.
+ *                   If count is set to -2, the value will always be returned
+ *                   by mock(), but is not required to be returned.
+ *
+ * @see mock()
+ */
+void will_return_array_count(#function, void* array, int length, int count);
+#else
+#define will_return_array_count(function, array, length, count) \
+    _will_return_array(#function, __FILE__, __LINE__, \
+                       array, length, count)
 #endif
 /** @} */
 
@@ -707,6 +890,51 @@ void expect_value_count(#function, #parameter, LargestIntegralType value, size_t
 
 #ifdef DOXYGEN
 /**
+ * @brief Add an event to check if a parameter is the given value.
+ *
+ * The event is triggered by calling check_expected() in the mocked function.
+ *
+ * @param[in]  #function  The function to add the check for.
+ *
+ * @param[in]  #parameter The name of the parameter passed to the function.
+ *
+ * @param[in]  value  The value to check.
+ *
+ * @see check_expected().
+ */
+void expect_float_value(#function, #parameter, float value);
+#else
+#define expect_float_value(function, parameter, value) \
+    expect_float_value_count(function, parameter, value, 1)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Add an event to repeatedly check if a parameter is the given value.
+ *
+ * The event is triggered by calling check_expected() in the mocked function.
+ *
+ * @param[in]  #function  The function to add the check for.
+ *
+ * @param[in]  #parameter The name of the parameter passed to the function.
+ *
+ * @param[in]  value  The value to check.
+ *
+ * @param[in]  count  The count parameter returns the number of times the value
+ *                    should be returned by check_expected(). If count is set
+ *                    to -1 the value will always be returned.
+ *
+ * @see check_expected().
+ */
+void expect_float_value_count(#function, #parameter, float value, size_t count);
+#else
+#define expect_float_value_count(function, parameter, value, count) \
+    _expect_value(#function, #parameter, __FILE__, __LINE__, \
+                  float_to_binary(value), count)
+#endif
+
+#ifdef DOXYGEN
+/**
  * @brief Add an event to check if a parameter isn't the given value.
  *
  * The event is triggered by calling check_expected() in the mocked function.
@@ -748,6 +976,51 @@ void expect_not_value_count(#function, #parameter, LargestIntegralType value, si
 #define expect_not_value_count(function, parameter, value, count) \
     _expect_not_value(#function, #parameter, __FILE__, __LINE__, \
                       cast_to_largest_integral_type(value), count)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Add an event to check if a parameter isn't the given value.
+ *
+ * The event is triggered by calling check_expected() in the mocked function.
+ *
+ * @param[in]  #function  The function to add the check for.
+ *
+ * @param[in]  #parameter The name of the parameter passed to the function.
+ *
+ * @param[in]  value  The value to check.
+ *
+ * @see check_expected().
+ */
+void expect_not_float_value(#function, #parameter, float value);
+#else
+#define expect_not_float_value(function, parameter, value) \
+    expect_not_value_count(function, parameter, value, 1)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Add an event to repeatedly check if a parameter isn't the given value.
+ *
+ * The event is triggered by calling check_expected() in the mocked function.
+ *
+ * @param[in]  #function  The function to add the check for.
+ *
+ * @param[in]  #parameter The name of the parameter passed to the function.
+ *
+ * @param[in]  value  The value to check.
+ *
+ * @param[in]  count  The count parameter returns the number of times the value
+ *                    should be returned by check_expected(). If count is set
+ *                    to -1 the value will always be returned.
+ *
+ * @see check_expected().
+ */
+void expect_not_float_value_count(#function, #parameter, float value, size_t count);
+#else
+#define expect_not_float_value_count(function, parameter, value, count) \
+    _expect_not_value(#function, #parameter, __FILE__, __LINE__, \
+                      float_to_binary(value), count)
 #endif
 
 #ifdef DOXYGEN
@@ -1023,6 +1296,24 @@ void check_expected_ptr(#parameter);
                     cast_ptr_to_largest_integral_type(parameter))
 #endif
 
+#ifdef DOXYGEN
+/**
+ * @brief Determine whether a function parameter is correct.
+ *
+ * This ensures the next value queued by one of the expect_float*() macros matches
+ * the specified variable.
+ *
+ * This function needs to be called in the mock object.
+ *
+ * @param[in]  #parameter  The parameter to check.
+ */
+void check_expected_float(#parameter);
+#else
+#define check_expected_float(parameter) \
+    _check_expected(__func__, #parameter, __FILE__, __LINE__, \
+                    float_to_binary(parameter))
+#endif
+
 /** @} */
 
 /**
@@ -1213,6 +1504,52 @@ void assert_int_not_equal(int a, int b);
     _assert_int_not_equal(cast_to_largest_integral_type(a), \
                           cast_to_largest_integral_type(b), \
                           __FILE__, __LINE__)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Assert that the two given floats are equal.
+ *
+ * The function prints an error message to standard error and terminates the
+ * test by calling fail() if the floats are not equal.
+ *
+ * @param[in]  a    The first float to compare.
+ *
+ * @param[in]  b    The float to compare against the first one.
+ *
+ * @param[in]  res  The resolution of the comparison (a == b +- res)
+ */
+void assert_float_equal(double a, double b, double res);
+#else
+#define assert_float_equal(a, b, res) \
+    _assert_float_equal((a), \
+                        (b), \
+                        (res), \
+                        __FILE__, __LINE__)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Assert that the two given floats are not equal.
+ *
+ * The function prints an error message to standard error and terminates the
+ * test by calling fail() if the floats are equal.
+ *
+ * @param[in]  a    The first float to compare.
+ *
+ * @param[in]  b    The float to compare against the first one.
+ *
+ * @param[in]  res  The resolution of the comparison (a == b +- res)
+ *
+ * @see assert_float_equal()
+ */
+void assert_float_not_equal(double a, double b, double res);
+#else
+#define assert_float_not_equal(a, b, res) \
+    _assert_float_not_equal((a), \
+                            (b), \
+                            (res), \
+                            __FILE__, __LINE__)
 #endif
 
 #ifdef DOXYGEN
@@ -2116,6 +2453,9 @@ extern const char * global_last_failed_assert;
 LargestIntegralType _mock(const char * const function, const char* const file,
                           const int line);
 
+/* Get the next return value for the specified mock function. */
+float _mock_float(const char* const function, const char* const file, const int line);
+
 void _expect_function_call(
     const char * const function_name,
     const char * const file,
@@ -2190,6 +2530,9 @@ void _check_expected(
 void _will_return(const char * const function_name, const char * const file,
                   const int line, const LargestIntegralType value,
                   const int count);
+void _will_return_array(const char * const function_name, const char * const file,
+                        const int line, const void* array,
+                        const int length, const int count);
 void _assert_true(const LargestIntegralType result,
                   const char* const expression,
                   const char * const file, const int line);
@@ -2204,6 +2547,12 @@ void _assert_int_equal(
     const char * const file, const int line);
 void _assert_int_not_equal(
     const LargestIntegralType a, const LargestIntegralType b,
+    const char * const file, const int line);
+void _assert_float_equal(
+    const double a, const double b, const double res,
+    const char * const file, const int line);
+void _assert_float_not_equal(
+    const double a, const double b, const double res,
     const char * const file, const int line);
 void _assert_string_equal(const char * const a, const char * const b,
                           const char * const file, const int line);
@@ -2237,6 +2586,9 @@ void _test_free(void* const ptr, const char* file, const int line);
 void _fail(const char * const file, const int line);
 
 void _skip(const char * const file, const int line);
+
+float binary_to_float(const LargestIntegralType value);
+LargestIntegralType float_to_binary(const float value);
 
 int _run_test(
     const char * const function_name, const UnitTestFunction Function,
